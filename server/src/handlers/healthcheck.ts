@@ -1,3 +1,6 @@
+import { db } from '../db';
+import { sql } from 'drizzle-orm';
+
 export interface HealthcheckResponse {
     status: string;
     timestamp: string;
@@ -6,16 +9,41 @@ export interface HealthcheckResponse {
 }
 
 export async function healthcheck(): Promise<HealthcheckResponse> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to provide a health status of the application and its dependencies.
-    // Steps to implement:
-    // 1. Check database connectivity by running a simple query
-    // 2. Optionally check external API endpoints availability
-    // 3. Return comprehensive health status
-    return Promise.resolve({
-        status: 'ok',
+    let databaseStatus = false;
+    let externalApisStatus = false;
+    let overallStatus = 'error';
+
+    try {
+        // Check database connectivity with a simple query
+        await db.execute(sql`SELECT 1 as health_check`);
+        databaseStatus = true;
+    } catch (error) {
+        console.error('Database health check failed:', error);
+        databaseStatus = false;
+    }
+
+    try {
+        // For now, we'll set external APIs as true since we don't have specific endpoints to check
+        // In a real implementation, you would check actual external service endpoints
+        externalApisStatus = true;
+    } catch (error) {
+        console.error('External APIs health check failed:', error);
+        externalApisStatus = false;
+    }
+
+    // Determine overall status
+    if (databaseStatus && externalApisStatus) {
+        overallStatus = 'ok';
+    } else if (databaseStatus || externalApisStatus) {
+        overallStatus = 'degraded';
+    } else {
+        overallStatus = 'error';
+    }
+
+    return {
+        status: overallStatus,
         timestamp: new Date().toISOString(),
-        database: true, // Would check actual DB connection
-        external_apis: true // Would check external service availability
-    });
+        database: databaseStatus,
+        external_apis: externalApisStatus
+    };
 }

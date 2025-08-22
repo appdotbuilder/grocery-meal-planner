@@ -1,20 +1,37 @@
+import { db } from '../db';
+import { usersTable } from '../db/schema';
 import { type UpdateUserSettingsInput, type User } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function updateUserSettings(input: UpdateUserSettingsInput): Promise<User> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to update a user's settings like Slack channel and auto-send preferences.
-    // Steps to implement:
-    // 1. Find user by ID
-    // 2. Update the provided fields (slack_channel, auto_send_slack)
-    // 3. Update the updated_at timestamp
-    // 4. Return the updated user record
-    return Promise.resolve({
-        id: input.id,
-        household_id: 'placeholder', // Would be fetched from DB
-        inventory_endpoint: 'https://placeholder.com', // Would be fetched from DB
-        slack_channel: input.slack_channel ?? null,
-        auto_send_slack: input.auto_send_slack ?? false,
-        created_at: new Date(), // Would be fetched from DB
-        updated_at: new Date()
-    } as User);
-}
+export const updateUserSettings = async (input: UpdateUserSettingsInput): Promise<User> => {
+  try {
+    // Build update object with only the fields provided in input
+    const updateData: { [key: string]: any } = {
+      updated_at: new Date()
+    };
+
+    if (input.slack_channel !== undefined) {
+      updateData['slack_channel'] = input.slack_channel;
+    }
+
+    if (input.auto_send_slack !== undefined) {
+      updateData['auto_send_slack'] = input.auto_send_slack;
+    }
+
+    // Update user settings
+    const result = await db.update(usersTable)
+      .set(updateData)
+      .where(eq(usersTable.id, input.id))
+      .returning()
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`User with id ${input.id} not found`);
+    }
+
+    return result[0];
+  } catch (error) {
+    console.error('User settings update failed:', error);
+    throw error;
+  }
+};
